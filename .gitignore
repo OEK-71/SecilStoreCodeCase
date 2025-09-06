@@ -1,0 +1,25 @@
+﻿# VS / .NET
+.vs/
+**/bin/
+**/obj/
+*.user
+*.suo
+
+# Build çıktıları & test artefaktları
+**/TestResults/
+*.coverage*
+*.trx
+
+# Publish çıktıları
+**/publish/
+
+# Rider/Resharper
+.idea/
+_ReSharper.*
+
+# node-yarn vs yok ama dursun
+node_modules/
+
+# wwwroot libs (nuget/npm ile tekrar inebilir)
+SecilStoreConfigWeb/wwwroot/lib/
+
