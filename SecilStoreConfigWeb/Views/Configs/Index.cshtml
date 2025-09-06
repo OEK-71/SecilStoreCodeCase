@@ -1,0 +1,163 @@
+﻿@model List<SecilStoreCodeCase.ConfigurationItem>
+@{
+    ViewData["Title"] = "Configurations";
+    var currentApp = ViewBag.App ?? "SERVICE-A";
+}
+@if (ViewBag.Demo is string demoText)
+{
+    <div class="alert alert-info">
+        <strong>Reader snapshot (SERVICE-A):</strong>
+        <span id="snapText">@ViewBag.Demo</span>
+        <span class="text-muted ms-2">(Last: <span id="snapLast">—</span>)</span>
+    </div>
+}
+@if (ViewBag.DbDown is string m)
+{
+    <div class="alert alert-warning">Storage down: @m — showing last reader snapshot.</div>
+}
+<div class="container mt-4">
+    <h3>Configurations</h3>
+
+
+    <form class="row gy-2 align-items-end" method="get" asp-action="Index">
+        <div class="col-auto">
+            <label class="form-label">Application</label>
+            <select name="app" class="form-select">
+                @foreach (var a in (IEnumerable<string>)ViewBag.Apps)
+                {
+                    <option value="@a" selected="@(string.Equals(a, currentApp, StringComparison.OrdinalIgnoreCase))">@a</option>
+                }
+            </select>
+        </div>
+        <div class="col-auto">
+            <button class="btn btn-primary">Load</button>
+        </div>
+        <div class="col-auto ms-auto">
+            <label class="form-label">Search by name</label>
+            <input id="searchBox" type="text" class="form-control" placeholder="Type to filter..." />
+        </div>
+    </form>
+    <hr /><br /><br />
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Add / Update (Upsert)</h5>
+            <form method="post" asp-action="Upsert">
+                @Html.AntiForgeryToken()
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label">ApplicationName</label>
+                        <input name="ApplicationName" class="form-control" value="@currentApp" required />
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Name (Key)</label>
+                        <input name="Name" class="form-control" required />
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Type</label>
+                        <select name="Type" class="form-select">
+                            <option>string</option>
+                            <option>int</option>
+                            <option>bool</option>
+                            <option>double</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Value</label>
+                        <input name="Value" class="form-control" required />
+                    </div>
+                    <div class="col-md-1 d-grid">
+                        <label class="form-label">&nbsp;</label>
+                        <button class="btn btn-success">Upsert</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <table class="table table-striped" id="cfgTable">
+        <thead>
+            <tr>
+                <th>Id</th>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Value</th>
+                <th>IsActive</th>
+                <th>ApplicationName</th>
+                <th style="width:140px;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var it in Model)
+            {
+                <tr>
+                    <td>@it.Id</td>
+                    <td class="name-cell">@it.Name</td>
+                    <td>@it.Type</td>
+                    <td>@it.Value</td>
+                    <td>@(it.IsActive ? 1 : 0)</td>
+                    <td>@it.ApplicationName</td>
+                    <td>
+                        @if (it.IsActive)
+                        {
+                            <form method="post" asp-action="Deactivate" class="d-inline">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="applicationName" value="@ViewBag.App" />
+                                <input type="hidden" name="name" value="@it.Name" />
+                                <button class="btn btn-sm btn-outline-danger"
+                                        onclick="return confirm('Deactivate @it.Name ?');">
+                                    Deactivate
+                                </button>
+                            </form>
+                        }
+                        @if (!it.IsActive)
+                        {
+                            <form method="post" asp-action="Activate" class="d-inline">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="applicationName" value="@it.ApplicationName" />
+                                <input type="hidden" name="name" value="@it.Name" />
+                                <button class="btn btn-sm btn-outline-success"
+                                        onclick="return confirm('Activate @it.Name ?');">
+                                    Activate
+                                </button>
+                            </form>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    </div>
+
+@section Scripts {
+    <script>
+
+        const searchBox = document.getElementById('searchBox');
+        const table = document.getElementById('cfgTable');
+        const rows = table.querySelectorAll('tbody tr');
+
+        searchBox.addEventListener('input', function () {
+            const needle = this.value.toLowerCase();
+            rows.forEach(r => {
+                const name = r.querySelector('.name-cell')?.textContent?.toLowerCase() ?? '';
+                r.style.display = name.includes(needle) ? '' : 'none';
+            });
+        });
+
+
+        async function refreshSnapshot() {
+          try {
+            const res = await fetch('/Configs/Snapshot', { cache: 'no-store' });
+            const data = await res.json();
+            if (data.ok) {
+              const text = `SiteName=${data.site} | MaxItemCount=${data.max} | IsFeatureXOpen=${data.flag}`;
+              document.getElementById('snapText').textContent = text;
+              document.getElementById('snapLast').textContent = data.last;
+            }
+          } catch (e) {
+          }
+        }
+        // ilk yüklemede ve her 5 sn’de bir güncelle
+        refreshSnapshot();
+        setInterval(refreshSnapshot, 5000);
+    </script>
+}
